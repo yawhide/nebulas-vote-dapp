@@ -3,17 +3,23 @@
     <head>
         <meta charset=utf-8>
         <title>Mock ontario election</title>
-        <link rel=stylesheet href=css/ui-block.css>
     </head>
     <body>
-        <!-- This pulls in the 'Select Wallet File' (incl Password) from Neb's library -->
-        <div class=select-wallet-file></div>
-
-        <br><br>
-
-        <!-- The Dapp form -->
-        <div id="main">
+        <select id="mainnet">
+            <option value="n1uGJ8rHX1tarzcGin3tLALYKrUckWf89bJ">testnet</option>
+            <option selected value="n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn">mainnet</option>
+        </select>
+        <div style="border-style: solid; margin: 20px 0 20px 0">
             <h4>2018 Ontario Election</h4>
+            <a href="https://en.wikipedia.org/wiki/Ontario_general_election,_2018" target="_default">More infomation about the election</a>
+            <h4>How to vote</h4>
+            <ol>
+                <li>Click the dropdown "Select candidate"</li>
+                <li>Click vote</li>
+                <li>(optional) Click refresh until you see your vote go through to the blockchain</li>
+            </ol>
+        </div>
+        <div id="main">
             <table>
                 <thead>
                     <tr>
@@ -25,138 +31,111 @@
                 </tbody>
             </table>
             <h4>Voting Booth</h4>
-            <p id="vote">You have voted for... You have to unlock your wallet first!</p>
-            <p>Candidate</p>
+            <p id="vote">You have voted for... You have to install the wallet chrome extension first!</p>
             <select id="select">
                 <option></option>
             </select>
             <button id="votebtc" disabled onclick="javascript:onClickVote()">Vote</button>
-            <button id=refresh onclick="javascript:onClickRefresh()">Refresh</button>
+            <button id="refresh" onclick="javascript:onClickRefresh()">Refresh</button>
         </div>
         <div id="loading">
             <p>Casting vote...</p>
         </div>
 
         <!-- All of these scripts are dependancies from the Nebulas Web Wallet -->
-        <script src=lib/jquery-3.3.1.min.js></script>
-        <script src=lib/nebulas.js></script>
-        <script src=js/1-localSave.js></script>
-        <script src=js/i18n.js data-depends=jquery.slim></script>
-        <script src=js/ui-block.js data-depends="bootbox blockies jquery.slim i18n.js nebulas.js"></script>
-
+        <script src=js/jquery-3.3.1.min.js></script>
+        <script src=nebPay.js></script>
         <!-- Front end logic for our Dapp -->
         <script>
             "use strict";
-
-            // Global variables used by our Dapp
-            var contract_address = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
-            var user_account = null;
-
-            // Gas hard coded for simplicity, ideally your app would allow for changing the gas price, etc.
-            var is_mainnet = true;
-            var nebulas_chain_id, nebulas_domain;
-            var gas_price = 1000000;
-            var gas_limit = 200000;
-
-            if(is_mainnet) {
-                nebulas_chain_id = 1;
-                nebulas_domain = 'https://mainnet.nebulas.io';
-            } else {
-                nebulas_chain_id = 1001;
-                nebulas_domain = 'https://testnet.nebulas.io';
+            var NebPay = require('nebpay');
+            var nebPay = new NebPay();
+            //to check if the extension is installed
+            //if the extension is installed, var "webExtensionWallet" will be injected in to web page
+            if(typeof(webExtensionWallet) === 'undefined'){
+                alert ('Extension wallet is not installed, please install it first.')
             }
 
-            var nebulas = require('nebulas');
-            var neb = new nebulas.Neb();
-            neb.setRequest(new nebulas.HttpRequest(nebulas_domain));
+            var contractAddress = $('#mainnet').val();
+            var callbackUrl;
 
-            uiBlock.insert({
-                selectWalletFile: ['.select-wallet-file', onUnlockFile]
+            updateNebPayConfig();
+
+            function isMainNet() {
+                return contractAddress === 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn' ? 'mainnet' : 'testnet';
+            }
+
+            function updateNebPayConfig() {
+                if (isMainNet() === 'mainnet') {
+                    callbackUrl = NebPay.config.mainnetUrl;
+                } else {
+                    callbackUrl = NebPay.config.testnetUrl;
+                }
+            }
+
+            $('#mainnet').change(function () {
+                var prevNet = isMainNet();
+                contractAddress = this.value;
+                console.log('changed from ' + prevNet + ' to ' + isMainNet());
+                updateNebPayConfig();
+                onClickRefresh();
             });
 
-            function onClickRefresh() {
-                neb.api.call({
-                    from: contract_address,
-                    to: contract_address,
-                    value: 0,
-                    nonce: 0,
-                    gasPrice: gas_price,
-                    gasLimit: gas_limit,
-                    contract: {function: 'getVotes'}
-                }).then(function (resp) {
-                    var candidateMapping = JSON.parse(resp.result);
-                    if(candidateMapping) {
-                        var tbodyHtml = '';
-                        var optionsHtml = '<option value="" selected disabled>Select candidate</option>';
-                        Object.keys(candidateMapping).forEach(function (candidate) {
-                            var tbody = '<tr>' +
-                                '<td>' + candidate + '</td>' +
-                                '<td>' + candidateMapping[candidate] + '</td>' +
-                                '</tr>';
-                            tbodyHtml += tbody;
-                            optionsHtml += '<option>' + candidate + '</option>';
-                        });
-                        $('#tbody').empty().append(tbodyHtml);
-                        $('#select').empty().append(optionsHtml);
-                    }
-                    if (user_account) {
-                        neb.api.call({
-                            from: user_account.getAddressString(),
-                            to: contract_address,
-                            value: 0,
-                            nonce: 0,
-                            gasPrice: gas_price,
-                            gasLimit: gas_limit,
-                            contract: {function: 'getMyVote'}
-                        }).then(function (resp) {
-                            var candidate = JSON.parse(resp.result);
-                            $('#vote').empty().append('You have voted for: ' + candidate);
-                        });
-                    }
+            $('#select').change(function () {
+                $('#votebtc').prop('disabled', !this.value || this.value === 'Select candidate')
+            });
+
+            function onGetVotes(resp) {
+                var candidateMapping = JSON.parse(resp.result);
+                if(candidateMapping) {
+                    var tbodyHtml = '';
+                    var optionsHtml = '<option value="" selected disabled>Select candidate</option>';
+                    Object.keys(candidateMapping).forEach(function (candidate) {
+                        var tbody = '<tr>' +
+                            '<td>' + candidate + '</td>' +
+                            '<td>' + candidateMapping[candidate] + '</td>' +
+                            '</tr>';
+                        tbodyHtml += tbody;
+                        optionsHtml += '<option>' + candidate + '</option>';
+                    });
+                    $('#tbody').empty().append(tbodyHtml);
+                    $('#select').empty().append(optionsHtml);
+                    $('#votebtc').prop('disabled', true);
+                }
+                nebPay.simulateCall(contractAddress, 0, 'getMyVote', null, {
+                    // callback: callback,
+                    listener: function (resp) {
+                        var candidate = JSON.parse(resp.result);
+                        $('#vote').empty().append('You have voted for: ' + candidate);
+                        $('#loading').hide();
+                    },
                 });
             }
 
-            $('#select').change(function () {
-                if (!user_account) return;
-                $('button').prop('disabled', this.value === 'Select candidate');
-            });
-
-            function onClickVote() {
-                // Every transaction has a sequential ID, called 'Nonce'. Required to sign a message (but not for reading information)
-                $('#loading').show();
-                $('#main').hide();
-                neb.api.getAccountState(user_account.getAddressString())
-                    .then(function (resp) {
-                        var nonce = parseInt(resp.nonce) + 1;
-                        var gTx = new nebulas.Transaction(
-                            nebulas_chain_id,
-                            user_account,
-                            contract_address,
-                            0,
-                            nonce,
-                            gas_price,
-                            gas_limit,
-                            {function: "castVote", args: JSON.stringify([$('#select').val()]) });
-                        gTx.signTransaction();
-                        neb.api.sendRawTransaction(gTx.toProtoString())
-                            .then(function () {
-                                onClickRefresh();
-                                $('#loading').hide();
-                                $('#main').show();
-                            });
-                    });
+            function onClickRefresh() {
+                nebPay.simulateCall(contractAddress, 0, 'getVotes', null, {
+                    // callback: callback,
+                    listener: onGetVotes,
+                });
             }
 
-            function onUnlockFile(swf, fileJson, account, password) {
-                account.fromKey(fileJson, password);
-                user_account = account;
-                var selectValue = $('#select').val();
-                $('button').prop('disabled', !selectValue || selectValue === 'Select candidate');
+            function onCastVote(resp) {
                 onClickRefresh();
+                $('#loading').hide();
+                $('#main').show();
+            }
+
+            function onClickVote() {
+                $('#loading').show();
+                $('#main').hide();
+                var party = $('#select').val();
+                nebPay.call(contractAddress, 0, 'castVote', JSON.stringify([party]), {
+                    // callback: callbackUrl,
+                    listener: onCastVote,
+                });
             }
 
             onClickRefresh();
-            $('#loading').hide();
         </script>
     </body>
 </html>
