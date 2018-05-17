@@ -1,0 +1,11 @@
+table.table {
+  max-width: 300px;
+}
+
+#vote {
+  min-width: 175px
+}
+
+h4 {
+  margin-top: 20px;
+}

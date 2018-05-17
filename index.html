@@ -2,27 +2,63 @@
 <html>
     <head>
         <meta charset=utf-8>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <title>Mock ontario election</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <link rel="stylesheet" type="text/css" href="css/style.css">
     </head>
     <body>
-        <select id="mainnet">
-            <option value="n1uGJ8rHX1tarzcGin3tLALYKrUckWf89bJ">testnet</option>
-            <option selected value="n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn">mainnet</option>
-        </select>
-        <div style="border-style: solid; margin: 20px 0 20px 0">
-            <h4>2018 Ontario Election</h4>
-            <a href="https://en.wikipedia.org/wiki/Ontario_general_election,_2018" target="_default">More infomation about the election</a>
-            <h4>How to vote</h4>
-            <ol>
-                <li>Click the dropdown "Select candidate"</li>
-                <li>Click vote</li>
-                <li>(optional) Click refresh until you see your vote go through to the blockchain</li>
-            </ol>
-        </div>
-        <div id="main">
-            <table>
+        <nav class="navbar sticky-top navbar-expand-lg navbar-light bg-light">
+            <div class="container">
+                <span class="navbar-brand mb-0 h1">Mock ontario election</span>
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://en.wikipedia.org/wiki/Ontario_general_election,_2018" target="_default">Election info</a>
+                    </li>
+                    <li class="nav-item">
+                        <a id="refresh" class="nav-link" href="#" onclick="javascript:onClickRefresh()">Refresh</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            How to vote
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <a class="dropdown-item" href="#">1. Click the dropdown "Select candidate"</a>
+                            <a class="dropdown-item" href="#">2. Click vote</a>
+                            <a class="dropdown-item" href="#">3. (optional) Click refresh until you see your vote go through to the blockchain</a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Mainnet
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <a id="mainnet" class="dropdown-item" href="#">Mainnet</a>
+                            <a id="testnet" class="dropdown-item" href="#">Testnet</a>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <div class="container">
+            <h4>Voting Booth</h4>
+            <form class="form-inline">
+                <div class="form-group mb-2">
+                    <label for="staticEmail2" class="sr-only">Email</label>
+                    <input id="vote" type="text" readonly class="form-control-plaintext" id="staticEmail2" value="You have voted for...">
+                </div>
+                <div class="form-group mx-sm-3 mb-2">
+                    <select id="select" class="form-control">
+                        <option></option>
+                    </select>
+                </div>
+                <button id="votebtc" class="btn btn-primary mb-2" disabled onclick="javascript:onClickVote()">Vote</button>
+            </form>
+            <h4>Current Standings</h4>
+            <table class="table">
                 <thead>
                     <tr>
+                        <th></th>
                         <th>Candidate</th>
                         <th>Votes</th>
                     </tr>
@@ -30,20 +66,10 @@
                 <tbody id="tbody">
                 </tbody>
             </table>
-            <h4>Voting Booth</h4>
-            <p id="vote">You have voted for... You have to install the wallet chrome extension first!</p>
-            <select id="select">
-                <option></option>
-            </select>
-            <button id="votebtc" disabled onclick="javascript:onClickVote()">Vote</button>
-            <button id="refresh" onclick="javascript:onClickRefresh()">Refresh</button>
         </div>
-        <div id="loading">
-            <p>Casting vote...</p>
-        </div>
-
         <!-- All of these scripts are dependancies from the Nebulas Web Wallet -->
         <script src=js/jquery-3.3.1.min.js></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
         <script src=nebPay.js></script>
         <!-- Front end logic for our Dapp -->
         <script>
@@ -56,8 +82,13 @@
                 alert ('Extension wallet is not installed, please install it first.')
             }
 
-            var contractAddress = $('#mainnet').val();
+            var contractAddress = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
             var callbackUrl;
+            var candidatePicMapping = {
+                pc: 'img/pc.jpg',
+                ndp: 'img/ndp.png',
+                lib: 'img/lib.jpg',
+            }
 
             updateNebPayConfig();
 
@@ -73,16 +104,26 @@
                 }
             }
 
-            $('#mainnet').change(function () {
+            $('#select').change(function () {
+                $('#votebtc').prop('disabled', !this.value || this.value === 'Select candidate')
+            });
+
+            $('#mainnet').click(function () {
+                $('nav-link dropdown-toggle').text('mainnet');
                 var prevNet = isMainNet();
-                contractAddress = this.value;
+                contractAddress = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
                 console.log('changed from ' + prevNet + ' to ' + isMainNet());
                 updateNebPayConfig();
                 onClickRefresh();
             });
 
-            $('#select').change(function () {
-                $('#votebtc').prop('disabled', !this.value || this.value === 'Select candidate')
+            $('#testnet').click(function () {
+                $('nav-link dropdown-toggle').text('testnet');
+                var prevNet = isMainNet();
+                contractAddress = 'n1uGJ8rHX1tarzcGin3tLALYKrUckWf89bJ';
+                console.log('changed from ' + prevNet + ' to ' + isMainNet());
+                updateNebPayConfig();
+                onClickRefresh();
             });
 
             function onGetVotes(resp) {
@@ -92,6 +133,7 @@
                     var optionsHtml = '<option value="" selected disabled>Select candidate</option>';
                     Object.keys(candidateMapping).forEach(function (candidate) {
                         var tbody = '<tr>' +
+                            '<td><img src="' + candidatePicMapping[candidate] + '" width="120" height="150" data-file-width="480" data-file-height="600"></td>' +
                             '<td>' + candidate + '</td>' +
                             '<td>' + candidateMapping[candidate] + '</td>' +
                             '</tr>';
@@ -106,8 +148,7 @@
                     // callback: callback,
                     listener: function (resp) {
                         var candidate = JSON.parse(resp.result);
-                        $('#vote').empty().append('You have voted for: ' + candidate);
-                        $('#loading').hide();
+                        $('#vote').prop('value', 'You have voted for: ' + candidate);
                     },
                 });
             }
@@ -121,13 +162,9 @@
 
             function onCastVote(resp) {
                 onClickRefresh();
-                $('#loading').hide();
-                $('#main').show();
             }
 
             function onClickVote() {
-                $('#loading').show();
-                $('#main').hide();
                 var party = $('#select').val();
                 nebPay.call(contractAddress, 0, 'castVote', JSON.stringify([party]), {
                     // callback: callbackUrl,
