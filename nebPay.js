@@ -188,7 +188,7 @@ function openApp(params, options) {
 	};
 	var url = "openapp.NASnano://virtual?params=" + JSON.stringify(appParams);
 	window.location.href = url;
-
+    debugger;
 	if (options.qrcode.showQRCode) {
 		showQRCode(JSON.stringify(appParams), options);
 	}

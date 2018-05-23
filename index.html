@@ -4,8 +4,11 @@
         <meta charset=utf-8>
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <title>Mock ontario election</title>
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
         <link rel="stylesheet" type="text/css" href="css/style.css">
+        <script src=js/jquery-3.3.1.min.js></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+        <script src="nebPay.js"></script>
     </head>
     <body>
         <nav class="navbar sticky-top navbar-expand-lg navbar-light bg-light">
@@ -13,30 +16,10 @@
                 <span class="navbar-brand mb-0 h1">Mock ontario election</span>
                 <ul class="navbar-nav mr-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="https://en.wikipedia.org/wiki/Ontario_general_election,_2018" target="_default">Election info</a>
+                        <a class="nav-link" href="/nebulas-vote-dapp">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a id="refresh" class="nav-link" href="#" onclick="javascript:onClickRefresh()">Refresh</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            How to vote
-                        </a>
-                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <a class="dropdown-item" href="https://github.com/ChengOrangeJu/WebExtensionWallet" target="_default">1. Ensure you have setup the WebExtensionWallet chrome extension</a>
-                            <a class="dropdown-item" href="#">2. Click the dropdown "Select candidate"</a>
-                            <a class="dropdown-item" href="#">3. Click vote</a>
-                            <a class="dropdown-item" href="#">4. (optional) Click refresh until you see your vote go through to the blockchain</a>
-                        </div>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            Mainnet
-                        </a>
-                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <a id="mainnet" class="dropdown-item" href="#">Mainnet</a>
-                            <a id="testnet" class="dropdown-item" href="#">Testnet</a>
-                        </div>
+                        <a class="nav-link" href="/nebulas-vote-dapp/about.html">About</a>
                     </li>
                 </ul>
             </div>
@@ -68,63 +51,24 @@
                 </tbody>
             </table>
         </div>
-        <!-- All of these scripts are dependancies from the Nebulas Web Wallet -->
-        <script src=js/jquery-3.3.1.min.js></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-        <script src=nebPay.js></script>
-        <!-- Front end logic for our Dapp -->
         <script>
             "use strict";
             var NebPay = require('nebpay');
             var nebPay = new NebPay();
-            //to check if the extension is installed
-            //if the extension is installed, var "webExtensionWallet" will be injected in to web page
-            if(typeof(webExtensionWallet) === 'undefined'){
-                alert ('Extension wallet is not installed, please install it first.')
-            }
 
-            var contractAddress = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
-            var callbackUrl;
+            // var contractAddress = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
+            // var callbackUrl = NebPay.config.mainnetUrl;
+            // testnet
+            var contractAddress = 'n1uGJ8rHX1tarzcGin3tLALYKrUckWf89bJ';
+            var callbackUrl = NebPay.config.testnetUrl;
             var candidatePicMapping = {
                 pc: 'img/pc.jpg',
                 ndp: 'img/ndp.png',
                 lib: 'img/lib.jpg',
             }
 
-            updateNebPayConfig();
-
-            function isMainNet() {
-                return contractAddress === 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn' ? 'mainnet' : 'testnet';
-            }
-
-            function updateNebPayConfig() {
-                if (isMainNet() === 'mainnet') {
-                    callbackUrl = NebPay.config.mainnetUrl;
-                } else {
-                    callbackUrl = NebPay.config.testnetUrl;
-                }
-            }
-
             $('#select').change(function () {
                 $('#votebtc').prop('disabled', !this.value || this.value === 'Select candidate')
-            });
-
-            $('#mainnet').click(function () {
-                $('nav-link dropdown-toggle').text('mainnet');
-                var prevNet = isMainNet();
-                contractAddress = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
-                console.log('changed from ' + prevNet + ' to ' + isMainNet());
-                updateNebPayConfig();
-                onClickRefresh();
-            });
-
-            $('#testnet').click(function () {
-                $('nav-link dropdown-toggle').text('testnet');
-                var prevNet = isMainNet();
-                contractAddress = 'n1uGJ8rHX1tarzcGin3tLALYKrUckWf89bJ';
-                console.log('changed from ' + prevNet + ' to ' + isMainNet());
-                updateNebPayConfig();
-                onClickRefresh();
             });
 
             function onGetVotes(resp) {
@@ -162,7 +106,10 @@
             }
 
             function onCastVote(resp) {
-                onClickRefresh();
+                var response = JSON.parse(resp.result);
+                console.log('response:', response, resp)
+                debugger;
+                // window.location.href = '/vote.html?tx=' + response;
             }
 
             function onClickVote() {
@@ -173,7 +120,15 @@
                 });
             }
 
-            onClickRefresh();
+            if (typeof(webExtensionWallet) === 'undefined') {
+                alert('Extension wallet is not installed, please install it first.');
+                // window.location.href = '/nebulas-vote-dapp/about.html';
+                var href = window.location.href;
+                var dir = href.substring(0, href.lastIndexOf('/')) + '/';
+                window.location =  dir + 'about.html';
+            } else {
+                onClickRefresh();
+            }
         </script>
     </body>
 </html>
