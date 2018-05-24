@@ -3,9 +3,14 @@ table.table {
 }
 
 #vote {
-  min-width: 175px
+  min-width: 175px;
+  margin-top: 14px;
 }
 
 h4 {
+  margin-top: 20px;
+}
+
+#processing, #loading {
   margin-top: 20px;
 }

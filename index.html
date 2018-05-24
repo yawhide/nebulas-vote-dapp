@@ -6,9 +6,10 @@
         <title>Mock ontario election</title>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
         <link rel="stylesheet" type="text/css" href="css/style.css">
-        <script src=js/jquery-3.3.1.min.js></script>
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+        <script src=js/jquery-3.3.1.min.js></script>
         <script src="nebPay.js"></script>
+        <script src="nebulas.js"></script>
     </head>
     <body>
         <nav class="navbar sticky-top navbar-expand-lg navbar-light bg-light">
@@ -25,110 +26,167 @@
             </div>
         </nav>
         <div class="container">
-            <h4>Voting Booth</h4>
-            <form class="form-inline">
-                <div class="form-group mb-2">
-                    <label for="staticEmail2" class="sr-only">Email</label>
-                    <input id="vote" type="text" readonly class="form-control-plaintext" id="staticEmail2" value="You have voted for...">
+            <div id="main" style="display: none;">
+                <h4>Voting Booth</h4>
+                <div class="form-inline">
+                    <div class="form-group mb-2">
+                        <p id="vote">You have not voted.</p>
+                    </div>
+                    <div class="form-group mx-sm-3 mb-2">
+                        <select id="select" class="form-control">
+                            <option></option>
+                        </select>
+                    </div>
+                    <button id="votebtc" class="btn btn-primary mb-2" disabled onclick="javascript:onClickVote()">Vote</button>
                 </div>
-                <div class="form-group mx-sm-3 mb-2">
-                    <select id="select" class="form-control">
-                        <option></option>
-                    </select>
-                </div>
-                <button id="votebtc" class="btn btn-primary mb-2" disabled onclick="javascript:onClickVote()">Vote</button>
-            </form>
-            <h4>Current Standings</h4>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>Candidate</th>
-                        <th>Votes</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody">
-                </tbody>
-            </table>
+                <h4>Current Standings</h4>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Candidate</th>
+                            <th>Votes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody">
+                    </tbody>
+                </table>
+            </div>
+            <div id="processing" style="display: none;">
+                <h5>Voting...</h5>
+            </div>
+            <div id="loading">
+                <h5>Loading the poll...</h5>
+            </div>
         </div>
         <script>
             "use strict";
             var NebPay = require('nebpay');
             var nebPay = new NebPay();
+            var nebulas = require('nebulas');
+            var neb = new nebulas.Neb();
 
-            // var contractAddress = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
-            // var callbackUrl = NebPay.config.mainnetUrl;
+            // var nebulas_chain_id
+            var nebulas_domain;
+            var gas_price = 1000000;
+            var gas_limit = 200000;
+
+            var contractAddress = 'n1tMib1B6gXBtgevvpWC5FqA98CjEG232Mn';
+            var callbackUrl = NebPay.config.mainnetUrl;
+            nebulas_domain = "https://mainnet.nebulas.io";
+            // nebulas_chain_id = 1;
+
             // testnet
-            var contractAddress = 'n1uGJ8rHX1tarzcGin3tLALYKrUckWf89bJ';
-            var callbackUrl = NebPay.config.testnetUrl;
+            // var contractAddress = 'n1uGJ8rHX1tarzcGin3tLALYKrUckWf89bJ';
+            // var callbackUrl = NebPay.config.testnetUrl;
+            // nebulas_domain = "https://testnet.nebulas.io";
+            // nebulas_chain_id = 1001;
+
+            neb.setRequest(new nebulas.HttpRequest(nebulas_domain));
             var candidatePicMapping = {
                 pc: 'img/pc.jpg',
                 ndp: 'img/ndp.png',
                 lib: 'img/lib.jpg',
             }
+            var missingExtension = typeof(webExtensionWallet) === 'undefined';
 
             $('#select').change(function () {
                 $('#votebtc').prop('disabled', !this.value || this.value === 'Select candidate')
             });
 
-            function onGetVotes(resp) {
-                var candidateMapping = JSON.parse(resp.result);
-                if(candidateMapping) {
-                    var tbodyHtml = '';
-                    var optionsHtml = '<option value="" selected disabled>Select candidate</option>';
-                    Object.keys(candidateMapping).forEach(function (candidate) {
-                        var tbody = '<tr>' +
-                            '<td><img src="' + candidatePicMapping[candidate] + '" width="120" height="150" data-file-width="480" data-file-height="600"></td>' +
-                            '<td>' + candidate + '</td>' +
-                            '<td>' + candidateMapping[candidate] + '</td>' +
-                            '</tr>';
-                        tbodyHtml += tbody;
-                        optionsHtml += '<option>' + candidate + '</option>';
-                    });
-                    $('#tbody').empty().append(tbodyHtml);
-                    $('#select').empty().append(optionsHtml);
-                    $('#votebtc').prop('disabled', true);
+            function handleGetMyVote(resp) {
+                if (resp) {
+                    var candidate = JSON.parse(resp.result);
+                    if (candidate) {
+                        $('#vote').text('You have voted for: ' + candidate);
+                    }
                 }
-                nebPay.simulateCall(contractAddress, 0, 'getMyVote', null, {
-                    // callback: callback,
+                $('#main').show();
+                $('#processing').hide();
+                $('#loading').hide();
+            }
+
+            function onClickRefresh() {
+                $('#loading').show();
+                $('#main').hide();
+                $('#processing').hide();
+
+                neb.api.call({
+                    from: contractAddress,
+                    to: contractAddress,
+                    value: 0,
+                    nonce: 0,
+                    gasPrice: gas_price,
+                    gasLimit: gas_limit,
+                    contract: {function: 'getVotes'}
+                }).then(function (resp) {
+                    console.log('candidateMapping:', resp)
+                    var candidateMapping = JSON.parse(resp.result);
+                    if(candidateMapping) {
+                        var tbodyHtml = '';
+                        var optionsHtml = '<option value="" selected disabled>Select candidate</option>';
+                        Object.keys(candidateMapping).forEach(function (candidate) {
+                            var tbody = '<tr>' +
+                                '<td><img src="' + candidatePicMapping[candidate] + '" width="120" height="150" data-file-width="480" data-file-height="600"></td>' +
+                                '<td>' + candidate + '</td>' +
+                                '<td>' + candidateMapping[candidate] + '</td>' +
+                                '</tr>';
+                            tbodyHtml += tbody;
+                            optionsHtml += '<option>' + candidate + '</option>';
+                        });
+                        $('#tbody').empty().append(tbodyHtml);
+                        $('#select').empty().append(optionsHtml);
+                        $('#votebtc').prop('disabled', true);
+                    }
+                    if (missingExtension) {
+                        return handleGetMyVote();
+                    }
+                    nebPay.simulateCall(contractAddress, 0, 'getMyVote', null, {
+                        listener: handleGetMyVote,
+                    });
+                });
+            }
+
+            function pollVoteTx(txhash) {
+                neb.api.getTransactionReceipt(txhash)
+                    .then(function (o) {
+                        if (o.status == 2) {
+                            return setTimeout(function () {
+                                pollVoteTx(txhash);
+                            }, 3000);
+                        }
+                        onClickRefresh();
+                    })
+                    .catch(function (e) {
+                        console.error('error getTransactionReceipt:', e);
+                        $('#main').show();
+                        $('#processing').hide();
+                    });
+            }
+
+            function onClickVote() {
+                if (missingExtension) {
+                    var href = window.location.href;
+                    var dir = href.substring(0, href.lastIndexOf('/')) + '/';
+                    window.location =  dir + 'about.html';
+                    return;
+                }
+                var party = $('#select').val();
+                $('#vote').prop('disabled', true);
+                $('#main').hide();
+                $('#processing').show();
+                nebPay.call(contractAddress, 0, 'castVote', JSON.stringify([party]), {
+                    callback: callbackUrl,
                     listener: function (resp) {
-                        var candidate = JSON.parse(resp.result);
-                        $('#vote').prop('value', 'You have voted for: ' + candidate);
+                        pollVoteTx(resp.txhash);
                     },
                 });
             }
 
-            function onClickRefresh() {
-                nebPay.simulateCall(contractAddress, 0, 'getVotes', null, {
-                    // callback: callback,
-                    listener: onGetVotes,
-                });
+            if (missingExtension) {
+                alert('Extension wallet is not installed, you can only see the current vote results.');
             }
-
-            function onCastVote(resp) {
-                var response = JSON.parse(resp.result);
-                console.log('response:', response, resp)
-                debugger;
-                // window.location.href = '/vote.html?tx=' + response;
-            }
-
-            function onClickVote() {
-                var party = $('#select').val();
-                nebPay.call(contractAddress, 0, 'castVote', JSON.stringify([party]), {
-                    // callback: callbackUrl,
-                    listener: onCastVote,
-                });
-            }
-
-            if (typeof(webExtensionWallet) === 'undefined') {
-                alert('Extension wallet is not installed, please install it first.');
-                // window.location.href = '/nebulas-vote-dapp/about.html';
-                var href = window.location.href;
-                var dir = href.substring(0, href.lastIndexOf('/')) + '/';
-                window.location =  dir + 'about.html';
-            } else {
-                onClickRefresh();
-            }
+            onClickRefresh();
         </script>
     </body>
 </html>
